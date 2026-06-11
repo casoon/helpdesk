@@ -1,4 +1,4 @@
-import PgBoss from 'pg-boss';
+import { PgBoss, type Job } from 'pg-boss';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createDb } from '@casoon/helpdesk-db';
 import { conversations, messages, customers, attachments } from '@casoon/helpdesk-db/schema';
@@ -20,7 +20,7 @@ const BUCKET = process.env.STORAGE_BUCKET ?? 'helpdesk-attachments';
 const db = createDb(process.env.DATABASE_URL!);
 
 export function startInboundProcessor(boss: PgBoss) {
-  boss.work<InboundEmailJob>('email:inbound', async (jobs: PgBoss.Job<InboundEmailJob>[]) => {
+  boss.work<InboundEmailJob>('email:inbound', async (jobs: Job<InboundEmailJob>[]) => {
     const job = jobs[0];
     const { mailboxId, rawMessagePath } = job.data;
 

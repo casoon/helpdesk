@@ -1,4 +1,4 @@
-import PgBoss from 'pg-boss';
+import { PgBoss } from 'pg-boss';
 import { createDb } from '@casoon/helpdesk-db';
 import { mailboxes } from '@casoon/helpdesk-db/schema';
 import { pollMailbox } from './poller.js';

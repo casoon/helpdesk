@@ -1,3 +1,17 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+allowBuilds:
+  esbuild: true
+  sharp: true
+minimumReleaseAgeExclude:
+  - '@aws-sdk/client-s3@3.1067.0'
+  - '@aws-sdk/s3-request-presigner@3.1067.0'
+  - '@turbo/darwin-64@2.9.18'
+  - '@turbo/darwin-arm64@2.9.18'
+  - '@turbo/linux-64@2.9.18'
+  - '@turbo/linux-arm64@2.9.18'
+  - '@turbo/windows-64@2.9.18'
+  - '@turbo/windows-arm64@2.9.18'
+  - '@types/node@25.9.3'
+  - turbo@2.9.18

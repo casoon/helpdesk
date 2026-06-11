@@ -1,4 +1,4 @@
-import PgBoss from 'pg-boss';
+import { PgBoss, type Job } from 'pg-boss';
 import type { OutboundEmailJob } from '@casoon/helpdesk-types';
 import { sendEmail } from './sender.js';
 import { createDb } from '@casoon/helpdesk-db';
@@ -12,7 +12,7 @@ async function run() {
   await boss.start();
   console.log('Mailer worker started');
 
-  boss.work<OutboundEmailJob>('email:outbound', async (jobs: PgBoss.Job<OutboundEmailJob>[]) => {
+  boss.work<OutboundEmailJob>('email:outbound', async (jobs: Job<OutboundEmailJob>[]) => {
     const job = jobs[0];
     const { messageId, to, subject, html, mailboxId, inReplyTo } = job.data;
 

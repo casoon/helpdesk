@@ -33,13 +33,13 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "drizzle-orm": "^0.40.0",
+    "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.5"
   },
   "devDependencies": {
-    "@types/node": "^22.10.7",
-    "drizzle-kit": "^0.30.0",
-    "typescript": "^5.7.3"
+    "@types/node": "^25.9.3",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^6.0.3"
   },
   "license": "AGPL-3.0-only"
 }

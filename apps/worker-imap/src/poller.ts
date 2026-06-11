@@ -1,5 +1,5 @@
 import { ImapFlow } from 'imapflow';
-import PgBoss from 'pg-boss';
+import { PgBoss } from 'pg-boss';
 import PostalMime from 'postal-mime';
 import sanitizeHtml from 'sanitize-html';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
