@@ -8,6 +8,7 @@ import { mailboxRoutes } from './routes/mailboxes.js';
 import { customerRoutes } from './routes/customers.js';
 import { userRoutes } from './routes/users.js';
 import { folderRoutes } from './routes/folders.js';
+import { tagRoutes } from './routes/tags.js';
 
 const app = new Hono().basePath('/api');
 
@@ -25,6 +26,7 @@ app.route('/mailboxes', mailboxRoutes);
 app.route('/customers', customerRoutes);
 app.route('/users', userRoutes);
 app.route('/folders', folderRoutes);
+app.route('/tags', tagRoutes);
 
 const port = Number(process.env.PORT) || 3000;
 
