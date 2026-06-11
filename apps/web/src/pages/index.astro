@@ -1,0 +1,8 @@
+---
+// Redirect to conversations if logged in, otherwise to login
+const token = Astro.cookies.get('token')?.value;
+if (token) {
+  return Astro.redirect('/conversations');
+}
+return Astro.redirect('/login');
+---

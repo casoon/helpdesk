@@ -1,0 +1,111 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const email = form.get('email') as string;
+  const password = form.get('password') as string;
+
+  try {
+    const res = await fetch(`${import.meta.env.API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (res.ok) {
+      const { token } = await res.json();
+      Astro.cookies.set('token', token, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7,
+      });
+      return Astro.redirect('/conversations');
+    }
+  } catch {
+    // fall through to show error
+  }
+}
+---
+<Layout title="Sign in" variant="plain">
+  <div
+    class="flex min-h-full flex-col items-center justify-center px-4 py-12"
+    style="background: var(--color-bg);"
+  >
+    <!-- Logo / wordmark -->
+    <div class="mb-8 flex items-center gap-2.5">
+      <div
+        class="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-white"
+        style="background: var(--color-accent);"
+      >H</div>
+      <span class="text-base font-semibold" style="color: var(--color-text-primary);">Helpdesk</span>
+    </div>
+
+    <!-- Card -->
+    <div
+      class="w-full max-w-sm rounded-xl border p-8"
+      style="background: var(--color-surface); border-color: var(--color-border); box-shadow: var(--shadow-sm);"
+    >
+      <h1 class="mb-1 text-xl font-semibold" style="color: var(--color-text-primary);">
+        Sign in
+      </h1>
+      <p class="mb-6 text-sm" style="color: var(--color-text-secondary);">
+        Enter your email and password to continue.
+      </p>
+
+      <form method="POST" class="space-y-4">
+        <div>
+          <label
+            class="mb-1.5 block text-sm font-medium"
+            style="color: var(--color-text-primary);"
+            for="email"
+          >Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autocomplete="email"
+            placeholder="you@example.com"
+            class="w-full rounded-lg border px-3 py-2 text-sm outline-none transition-shadow placeholder:text-gray-400
+              focus:ring-2"
+            style="border-color: var(--color-border); color: var(--color-text-primary); background: var(--color-surface);
+              --tw-ring-color: var(--color-accent); --tw-ring-offset-color: var(--color-surface);"
+          />
+        </div>
+
+        <div>
+          <label
+            class="mb-1.5 block text-sm font-medium"
+            style="color: var(--color-text-primary);"
+            for="password"
+          >Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            autocomplete="current-password"
+            placeholder="••••••••"
+            class="w-full rounded-lg border px-3 py-2 text-sm outline-none transition-shadow focus:ring-2"
+            style="border-color: var(--color-border); color: var(--color-text-primary); background: var(--color-surface);
+              --tw-ring-color: var(--color-accent);"
+          />
+        </div>
+
+        <button
+          type="submit"
+          class="mt-2 w-full rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-80"
+          style="background: var(--color-accent);"
+        >
+          Sign in
+        </button>
+      </form>
+    </div>
+
+    <p class="mt-6 text-xs" style="color: var(--color-text-tertiary);">
+      @casoon/helpdesk — early development build
+    </p>
+  </div>
+</Layout>

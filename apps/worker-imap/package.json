@@ -1,0 +1,29 @@
+{
+  "name": "@casoon/helpdesk-worker-imap",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@casoon/helpdesk-db": "workspace:*",
+    "@casoon/helpdesk-types": "workspace:*",
+    "@aws-sdk/client-s3": "^3.0.0",
+    "drizzle-orm": "^0.40.0",
+    "imapflow": "^1.0.169",
+    "postal-mime": "^2.3.1",
+    "sanitize-html": "^2.14.0",
+    "pg-boss": "^10.1.4"
+  },
+  "devDependencies": {
+    "@types/sanitize-html": "^2.13.0",
+    "@types/node": "^22.10.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "license": "AGPL-3.0-only"
+}

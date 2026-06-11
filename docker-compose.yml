@@ -1,0 +1,95 @@
+name: casoon-helpdesk
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      PORT: 3000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "4321:4321"
+    env_file: .env
+    environment:
+      PORT: 4321
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker-imap:
+    build:
+      context: .
+      dockerfile: apps/worker-imap/Dockerfile
+    env_file: .env
+    restart: unless-stopped
+
+  worker-mailer:
+    build:
+      context: .
+      dockerfile: apps/worker-mailer/Dockerfile
+    env_file: .env
+    restart: unless-stopped
+
+  # Object Storage — S3-kompatibel, nur für lokales Dev
+  # In Production: Cloudflare R2, AWS S3, Hetzner Object Storage, etc.
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web Console (http://localhost:9001, user: minioadmin)
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin;
+        mc mb --ignore-existing local/helpdesk-attachments;
+        mc anonymous set download local/helpdesk-attachments;
+      "
+    restart: on-failure
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
+
+volumes:
+  minio_data:

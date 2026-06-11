@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.astro/
+.turbo/
+*.local
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# IDE
+.idea/
+.vscode/settings.json
+*.swp

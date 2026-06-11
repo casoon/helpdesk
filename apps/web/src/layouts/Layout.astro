@@ -1,0 +1,40 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  /**
+   * 'app'   — full app shell with sidebar (authenticated pages)
+   * 'plain' — centered, no chrome (login, error pages)
+   */
+  variant?: 'app' | 'plain';
+}
+
+const { title, variant = 'plain' } = Astro.props;
+---
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — Helpdesk</title>
+    <link rel="preconnect" href="https://rsms.me/" />
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="h-full">
+    {variant === 'app' ? (
+      <div class="flex h-full">
+        <slot name="sidebar" />
+        <div class="flex flex-1 flex-col min-w-0 overflow-hidden">
+          <slot name="topbar" />
+          <main class="flex-1 overflow-auto">
+            <slot />
+          </main>
+        </div>
+      </div>
+    ) : (
+      <slot />
+    )}
+  </body>
+</html>
