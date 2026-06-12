@@ -10,6 +10,7 @@ import { folderRoutes } from './routes/folders.js';
 import { tagRoutes } from './routes/tags.js';
 import { searchRoutes } from './routes/search.js';
 import { eventRoutes } from './routes/events.js';
+import { savedReplyRoutes } from './routes/saved-replies.js';
 
 const app = new Hono().basePath('/api');
 
@@ -42,6 +43,7 @@ app.route('/folders', folderRoutes);
 app.route('/tags', tagRoutes);
 app.route('/search', searchRoutes);
 app.route('/events', eventRoutes);
+app.route('/saved-replies', savedReplyRoutes);
 
 const port = Number(process.env.PORT) || 3000;
 

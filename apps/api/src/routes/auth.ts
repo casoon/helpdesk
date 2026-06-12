@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { SignJWT } from 'jose';
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import { createDb } from '@casoon/helpdesk-db';
 import { users } from '@casoon/helpdesk-db/schema';
 import { eq } from 'drizzle-orm';
@@ -10,6 +11,9 @@ export const authRoutes = new Hono();
 
 // Simple in-memory rate limiter: max 10 login attempts per IP per minute
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+// In-memory reset token store: token → { userId, expiresAt }
+const resetTokens = new Map<string, { userId: string; expiresAt: number }>();
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -77,3 +81,34 @@ authRoutes.get('/me', requireAuth, async (c) => {
 });
 
 authRoutes.post('/logout', (c) => c.json({ ok: true }));
+
+authRoutes.post('/forgot-password', async (c) => {
+  const { email } = await c.req.json<{ email: string }>();
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+
+  // Always return 200 to avoid email enumeration
+  if (!user) return c.json({ ok: true });
+
+  const token = randomUUID();
+  resetTokens.set(token, { userId: user.id, expiresAt: Date.now() + 3600_000 }); // 1h expiry
+
+  // In production this would send an email. Log it for now.
+  console.log(JSON.stringify({ ts: new Date().toISOString(), event: 'password_reset_token', email, token }));
+
+  return c.json({ ok: true });
+});
+
+authRoutes.patch('/reset-password', async (c) => {
+  const { token, password } = await c.req.json<{ token: string; password: string }>();
+
+  const entry = resetTokens.get(token);
+  if (!entry || entry.expiresAt < Date.now()) {
+    return c.json({ error: 'Invalid or expired reset token' }, 400);
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, entry.userId));
+
+  resetTokens.delete(token);
+  return c.json({ ok: true });
+});

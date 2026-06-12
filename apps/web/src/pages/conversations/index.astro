@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import Sidebar from '../../components/Sidebar.svelte';
 import Topbar from '../../components/Topbar.svelte';
 import SseBridge from '../../components/SseBridge.svelte';
+import ConversationList from '../../components/ConversationList.svelte';
 import { apiFetch } from '../../lib/api.js';
 import type { ApiList, Conversation, Folder, Mailbox, User } from '@casoon/helpdesk-types';
 
@@ -34,34 +35,6 @@ const folderLabels: Record<string, string> = {
   unassigned: 'Unassigned', mine: 'Mine', assigned: 'All Assigned',
   drafts: 'Drafts', starred: 'Starred', closed: 'Closed', spam: 'Spam', deleted: 'Deleted',
 };
-
-function statusColor(status: string) {
-  const map: Record<string, string> = {
-    active: 'var(--color-status-active)',
-    pending: 'var(--color-status-pending)',
-    closed: 'var(--color-status-closed)',
-    spam: 'var(--color-status-spam)',
-  };
-  return map[status] ?? 'var(--color-text-tertiary)';
-}
-
-function displayName(c: Conversation) {
-  const { firstName, lastName, email } = c.customer;
-  if (firstName || lastName) return [firstName, lastName].filter(Boolean).join(' ');
-  return email;
-}
-
-function relativeTime(iso: string | null) {
-  if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
-  const min = Math.floor(diff / 60_000);
-  if (min < 60) return `${min}m`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h`;
-  const d = Math.floor(hr / 24);
-  if (d < 30) return `${d}d`;
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
 ---
 <Layout title={folderLabels[folder] ?? 'Conversations'} variant="app">
   <Sidebar
@@ -125,70 +98,7 @@ function relativeTime(iso: string | null) {
           <p class="mt-1 text-xs" style="color: var(--color-text-tertiary);">All caught up!</p>
         </div>
       ) : (
-        <ul>
-          {conversations.map((conv) => (
-            <li>
-              <a
-                href={`/conversations/${conv.id}`}
-                class="group flex items-start gap-3 border-b px-4 py-3 transition-colors hover:bg-white"
-                style="border-color: var(--color-border);"
-              >
-                <!-- Avatar -->
-                <div
-                  class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-                  style={`background: var(--color-accent);`}
-                >
-                  {displayName(conv).slice(0, 1).toUpperCase()}
-                </div>
-
-                <!-- Content -->
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-baseline gap-2">
-                    <span class="truncate text-sm font-medium" style="color: var(--color-text-primary);">
-                      {displayName(conv)}
-                    </span>
-                    <span class="shrink-0 text-xs tabular-nums" style="color: var(--color-text-tertiary);">
-                      {relativeTime(conv.lastReplyAt)}
-                    </span>
-                  </div>
-
-                  <p class="mt-0.5 truncate text-sm" style="color: var(--color-text-primary);">
-                    {conv.subject}
-                  </p>
-
-                  <p class="mt-0.5 truncate text-xs" style="color: var(--color-text-tertiary);">
-                    {conv.preview}
-                  </p>
-                </div>
-
-                <!-- Right meta -->
-                <div class="flex shrink-0 flex-col items-end gap-1.5">
-                  <!-- Status dot -->
-                  <span
-                    class="mt-1.5 h-1.5 w-1.5 rounded-full"
-                    style={`background: ${statusColor(conv.status)};`}
-                  ></span>
-
-                  {conv.hasAttachments && (
-                    <svg class="h-3 w-3" style="color: var(--color-text-tertiary);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
-                    </svg>
-                  )}
-
-                  {conv.assignee && (
-                    <div
-                      class="flex h-4 w-4 items-center justify-center rounded-full text-xs font-semibold text-white"
-                      style="background: var(--color-text-tertiary); font-size: 9px;"
-                      title={`${conv.assignee.firstName} ${conv.assignee.lastName}`}
-                    >
-                      {conv.assignee.firstName?.[0]}
-                    </div>
-                  )}
-                </div>
-              </a>
-            </li>
-          ))}
-        </ul>
+        <ConversationList {conversations} client:load />
       )}
     </div>
 

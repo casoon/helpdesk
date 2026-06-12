@@ -48,7 +48,7 @@ services:
   # Object Storage — S3-kompatibel, nur für lokales Dev
   # In Production: Cloudflare R2, AWS S3, Hetzner Object Storage, etc.
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"   # S3 API

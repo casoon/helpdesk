@@ -349,6 +349,20 @@ export const conversationTags = pgTable('conversation_tags', {
   uniqueIndex('conv_tag_unique').on(t.conversationId, t.tagId),
 ]);
 
+// ─── Saved Replies ────────────────────────────────────────────────────────────
+
+export const savedReplies = pgTable('saved_replies', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  body: text('body').notNull(),
+  mailboxId: uuid('mailbox_id').references(() => mailboxes.id, { onDelete: 'cascade' }),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => [
+  index('saved_replies_mailbox_idx').on(t.mailboxId),
+]);
+
 // ─── Followers ────────────────────────────────────────────────────────────────
 
 export const followers = pgTable('followers', {

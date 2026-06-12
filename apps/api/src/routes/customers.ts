@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createDb } from '@casoon/helpdesk-db';
 import { customers, conversations } from '@casoon/helpdesk-db/schema';
-import { eq, ilike } from 'drizzle-orm';
+import { eq, ilike, desc } from 'drizzle-orm';
 import { requireAuth } from '../middleware/auth.js';
 
 export const customerRoutes = new Hono();
@@ -36,4 +36,25 @@ customerRoutes.get('/:id', async (c) => {
     .limit(20);
 
   return c.json({ customer, conversations: convs });
+});
+
+customerRoutes.get('/:id/stats', async (c) => {
+  const { id } = c.req.param();
+  const [customer] = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
+  if (!customer) return c.json({ error: 'Not found' }, 404);
+
+  const convs = await db.select({
+    id: conversations.id,
+    status: conversations.status,
+    subject: conversations.subject,
+    createdAt: conversations.createdAt,
+  }).from(conversations).where(eq(conversations.customerId, id)).orderBy(desc(conversations.createdAt)).limit(10);
+
+  return c.json({
+    customer,
+    recentConversations: convs,
+    stats: {
+      total: convs.length,
+    },
+  });
 });
