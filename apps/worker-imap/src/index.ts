@@ -1,3 +1,4 @@
+import { createServer } from 'node:http';
 import { PgBoss } from 'pg-boss';
 import { createDb } from '@casoon/helpdesk-db';
 import { mailboxes } from '@casoon/helpdesk-db/schema';
@@ -13,6 +14,17 @@ async function run() {
 
   // Start consuming inbound jobs
   startInboundProcessor(boss);
+
+  const healthServer = createServer((req, res) => {
+    if (req.url === '/health' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', service: 'worker-imap' }));
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
+  });
+  healthServer.listen(3001, () => console.log('[imap] health check on :3001'));
 
   const shutdown = async (signal: string) => {
     console.log(`[imap] received ${signal}, shutting down…`);

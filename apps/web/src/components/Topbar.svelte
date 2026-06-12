@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { User } from '@casoon/helpdesk-types';
+  import SearchOverlay from './SearchOverlay.svelte';
 
   interface Props {
     user: Pick<User, 'firstName' | 'lastName' | 'avatarUrl'>;
@@ -7,6 +8,8 @@
   }
 
   let { user, title }: Props = $props();
+
+  let searchOpen = $state(false);
 
   function initials(u: typeof user) {
     return (u.firstName?.[0] ?? '') + (u.lastName?.[0] ?? '');
@@ -18,14 +21,21 @@
   style="height: var(--topbar-height); background: var(--color-surface); border-color: var(--color-border);"
 >
   <!-- Search -->
-  <div class="flex flex-1 items-center gap-2 rounded-md border px-3 py-1.5 text-sm"
-    style="border-color: var(--color-border); background: var(--color-bg); color: var(--color-text-tertiary); max-width: 400px;">
+  <button
+    type="button"
+    onclick={() => (searchOpen = true)}
+    class="flex flex-1 items-center gap-2 rounded-md border px-3 py-1.5 text-sm text-left cursor-text"
+    style="border-color: var(--color-border); background: var(--color-bg); color: var(--color-text-tertiary); max-width: 400px;"
+    aria-label="Open search"
+  >
     <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
     </svg>
     <span>Search conversations…</span>
     <kbd class="ml-auto rounded px-1 text-xs" style="background: var(--color-border); color: var(--color-text-tertiary);">⌘K</kbd>
-  </div>
+  </button>
+
+  <SearchOverlay bind:open={searchOpen} />
 
   <div class="ml-auto flex items-center gap-2">
     <!-- Notifications -->

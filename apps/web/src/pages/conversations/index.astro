@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import Sidebar from '../../components/Sidebar.svelte';
 import Topbar from '../../components/Topbar.svelte';
+import SseBridge from '../../components/SseBridge.svelte';
 import { apiFetch } from '../../lib/api.js';
 import type { ApiList, Conversation, Folder, Mailbox, User } from '@casoon/helpdesk-types';
 
@@ -78,6 +79,7 @@ function relativeTime(iso: string | null) {
       client:load
     />
   )}
+  <SseBridge client:load />
 
   <!-- Conversation list -->
   <div class="flex flex-col h-full">

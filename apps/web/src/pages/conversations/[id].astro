@@ -5,6 +5,7 @@ import Topbar from '../../components/Topbar.svelte';
 import ReplyEditor from '../../components/ReplyEditor.svelte';
 import TagEditor from '../../components/TagEditor.svelte';
 import ConversationActions from '../../components/ConversationActions.svelte';
+import SseDetailBridge from '../../components/SseDetailBridge.svelte';
 import { apiFetch } from '../../lib/api.js';
 import type { Conversation, Folder, Mailbox, Message, User } from '@casoon/helpdesk-types';
 
@@ -114,6 +115,7 @@ function formatBytes(bytes: number) {
       client:load
     />
   )}
+  {conversation && <SseDetailBridge conversationId={conversation.id} client:load />}
 
   {!conversation ? (
     <div class="flex items-center justify-center h-full">

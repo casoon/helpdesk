@@ -1,3 +1,4 @@
+import { createServer } from 'node:http';
 import { PgBoss, type Job } from 'pg-boss';
 import type { OutboundEmailJob } from '@casoon/helpdesk-types';
 import { sendEmail } from './sender.js';
@@ -11,6 +12,17 @@ async function run() {
   const boss = new PgBoss({ connectionString: process.env.DATABASE_URL! });
   await boss.start();
   console.log('Mailer worker started');
+
+  const healthServer = createServer((req, res) => {
+    if (req.url === '/health' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', service: 'worker-mailer' }));
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
+  });
+  healthServer.listen(3002, () => console.log('[mailer] health check on :3002'));
 
   const shutdown = async (signal: string) => {
     console.log(`[mailer] received ${signal}, shutting down…`);

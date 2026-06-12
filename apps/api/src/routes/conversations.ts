@@ -17,6 +17,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { requireAuth } from '../middleware/auth.js';
 import type { ConversationStatus, OutboundEmailJob } from '@casoon/helpdesk-types';
 import { getQueue } from '../lib/queue.js';
+import { broadcastAll } from '../lib/sse.js';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -447,6 +448,8 @@ conversationRoutes.post('/', async (c) => {
     console.error('[conversations] failed to enqueue outbound email:', err);
   }
 
+  broadcastAll('conversation.new', { id: conversation.id, subject: conversation.subject, status: conversation.status, mailboxId: conversation.mailboxId });
+
   return c.json({ conversation }, 201);
 });
 
@@ -497,6 +500,8 @@ conversationRoutes.patch('/:id', async (c) => {
       sourceType: 'api',
     });
   }
+
+  broadcastAll('conversation.updated', { id: updated.id, status: updated.status, assigneeId: updated.assigneeId });
 
   return c.json({ conversation: updated });
 });
@@ -570,6 +575,8 @@ conversationRoutes.post('/:id/messages', async (c) => {
       console.error('[conversations] failed to enqueue outbound email:', err);
     }
   }
+
+  broadcastAll('message.new', { conversationId: id, messageId: msg.id, type: body.type });
 
   return c.json({ message: msg }, 201);
 });
