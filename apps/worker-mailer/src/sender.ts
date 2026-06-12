@@ -36,12 +36,27 @@ export async function sendEmail(opts: {
     transports.set(box.id, transport);
   }
 
-  await transport.sendMail({
+  const mailOptions: nodemailer.SendMailOptions = {
     from: `"${box.name}" <${box.email}>`,
     to: opts.to,
     subject: opts.subject,
     html: opts.html,
     inReplyTo: opts.inReplyTo,
     references: opts.inReplyTo,
-  });
+  };
+
+  // DKIM signing (optional — requires DKIM_PRIVATE_KEY, DKIM_SELECTOR, DKIM_DOMAIN env vars)
+  const dkimKey = process.env.DKIM_PRIVATE_KEY;
+  const dkimSelector = process.env.DKIM_SELECTOR;
+  const dkimDomain = process.env.DKIM_DOMAIN;
+
+  if (dkimKey && dkimSelector && dkimDomain) {
+    (mailOptions as any).dkim = {
+      domainName: dkimDomain,
+      keySelector: dkimSelector,
+      privateKey: dkimKey.replace(/\\n/g, '\n'),  // handle escaped newlines from env var
+    };
+  }
+
+  await transport.sendMail(mailOptions);
 }

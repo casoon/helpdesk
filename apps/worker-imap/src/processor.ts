@@ -1,7 +1,7 @@
 import { PgBoss, type Job } from 'pg-boss';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createDb } from '@casoon/helpdesk-db';
-import { conversations, messages, customers, attachments } from '@casoon/helpdesk-db/schema';
+import { conversations, messages, customers, attachments, sendLogs } from '@casoon/helpdesk-db/schema';
 import { eq, and } from 'drizzle-orm';
 import { parseEml } from './poller.js';
 import type { InboundEmailJob } from '@casoon/helpdesk-types';
@@ -27,6 +27,13 @@ export function startInboundProcessor(boss: PgBoss) {
     const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: rawMessagePath }));
     const raw = Buffer.from(await obj.Body!.transformToByteArray());
     const parsed = await parseEml(raw);
+
+    // Detect bounce/DSN emails
+    if (isBounce(parsed)) {
+      await handleBounce(parsed);
+      console.log(`[processor] bounce email detected from ${parsed.fromEmail}`);
+      return;
+    }
 
     // Upsert customer
     let [customer] = await db
@@ -107,6 +114,44 @@ export function startInboundProcessor(boss: PgBoss) {
 
     console.log(`[processor] conversation ${conversation.id} — message ${msg.id}`);
   });
+}
+
+function isBounce(parsed: Awaited<ReturnType<typeof parseEml>>): boolean {
+  const from = parsed.fromEmail.toLowerCase();
+  return (
+    from.startsWith('mailer-daemon@') ||
+    from.startsWith('postmaster@') ||
+    from === '' ||
+    // Check for DSN content-type in raw text (postal-mime doesn't expose content-type directly)
+    (parsed.text ?? '').toLowerCase().includes('delivery status notification') ||
+    (parsed.subject ?? '').toLowerCase().includes('delivery') ||
+    (parsed.subject ?? '').toLowerCase().includes('undeliverable') ||
+    (parsed.subject ?? '').toLowerCase().includes('failure notice')
+  );
+}
+
+async function handleBounce(parsed: Awaited<ReturnType<typeof parseEml>>): Promise<void> {
+  // Try to find the original message ID referenced in the bounce
+  // Bounces typically contain the original message-id in the body or as a part
+  const body = (parsed.text ?? '') + (parsed.html ?? '');
+  const msgIdMatch = body.match(/Message-ID[:\s]+<([^>]+)>/i);
+
+  if (msgIdMatch) {
+    const originalMsgId = `<${msgIdMatch[1]}>`;
+    const [log] = await db
+      .select({ id: sendLogs.id })
+      .from(sendLogs)
+      .where(eq(sendLogs.emailMessageId, originalMsgId))
+      .limit(1);
+
+    if (log) {
+      await db
+        .update(sendLogs)
+        .set({ status: 'delivery_error', statusMessage: parsed.subject ?? 'Bounce received' })
+        .where(eq(sendLogs.id, log.id));
+      console.log(`[processor] marked send_log ${log.id} as delivery_error`);
+    }
+  }
 }
 
 async function findConversationByMessageId(messageId: string, mailboxId: string) {

@@ -2,10 +2,8 @@ import { createServer } from 'node:http';
 import { PgBoss } from 'pg-boss';
 import { createDb } from '@casoon/helpdesk-db';
 import { mailboxes } from '@casoon/helpdesk-db/schema';
-import { pollMailbox } from './poller.js';
+import { startIdleWatcher } from './poller.js';
 import { startInboundProcessor } from './processor.js';
-
-const POLL_INTERVAL_MS = 60_000;
 
 async function run() {
   const boss = new PgBoss({ connectionString: process.env.DATABASE_URL! });
@@ -26,8 +24,11 @@ async function run() {
   });
   healthServer.listen(3001, () => console.log('[imap] health check on :3001'));
 
+  const abortController = new AbortController();
+
   const shutdown = async (signal: string) => {
     console.log(`[imap] received ${signal}, shutting down…`);
+    abortController.abort();
     await boss.stop();
     process.exit(0);
   };
@@ -36,16 +37,26 @@ async function run() {
 
   const db = createDb(process.env.DATABASE_URL!);
 
-  while (true) {
-    const boxes = await db.select().from(mailboxes);
-    for (const box of boxes) {
-      if (!box.inServer || !box.inUsername) continue;
-      pollMailbox(boss, box).catch((err) =>
-        console.error(`[imap] mailbox ${box.email} error:`, err),
-      );
+  // Start IDLE watcher per mailbox; poll DB every 5 min to pick up newly added mailboxes
+  async function startWatchers() {
+    const running = new Map<string, boolean>();
+
+    while (!abortController.signal.aborted) {
+      const boxes = await db.select().from(mailboxes);
+      for (const box of boxes) {
+        if (!box.inServer || !box.inUsername || !box.inPasswordEncrypted) continue;
+        if (running.get(box.id)) continue;
+
+        running.set(box.id, true);
+        startIdleWatcher(boss, box, abortController.signal)
+          .finally(() => running.delete(box.id));
+      }
+      // Check for new mailboxes every 5 minutes
+      await new Promise((r) => setTimeout(r, 5 * 60_000));
     }
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
+
+  startWatchers().catch((err) => console.error('[imap] watcher manager error:', err));
 }
 
 run().catch((err) => {
