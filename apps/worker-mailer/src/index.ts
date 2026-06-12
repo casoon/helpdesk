@@ -12,6 +12,14 @@ async function run() {
   await boss.start();
   console.log('Mailer worker started');
 
+  const shutdown = async (signal: string) => {
+    console.log(`[mailer] received ${signal}, shutting down…`);
+    await boss.stop();
+    process.exit(0);
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+
   boss.work<OutboundEmailJob>('email:outbound', async (jobs: Job<OutboundEmailJob>[]) => {
     const job = jobs[0];
     const { messageId, to, subject, html, mailboxId, inReplyTo } = job.data;

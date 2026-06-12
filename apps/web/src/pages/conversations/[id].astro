@@ -3,6 +3,8 @@ import Layout from '../../layouts/Layout.astro';
 import Sidebar from '../../components/Sidebar.svelte';
 import Topbar from '../../components/Topbar.svelte';
 import ReplyEditor from '../../components/ReplyEditor.svelte';
+import TagEditor from '../../components/TagEditor.svelte';
+import ConversationActions from '../../components/ConversationActions.svelte';
 import { apiFetch } from '../../lib/api.js';
 import type { Conversation, Folder, Mailbox, Message, User } from '@casoon/helpdesk-types';
 
@@ -11,11 +13,13 @@ if (!token) return Astro.redirect('/login');
 
 const { id } = Astro.params;
 
-const [convResult, foldersResult, mailboxesResult, meResult] = await Promise.allSettled([
+const [convResult, foldersResult, mailboxesResult, meResult, tagsResult, usersResult] = await Promise.allSettled([
   apiFetch<{ conversation: Conversation & { tags: { id: string; name: string; color: string }[] }; messages: Message[] }>(`/conversations/${id}`, { token }),
   apiFetch<{ data: Folder[] }>('/folders', { token }),
   apiFetch<{ data: Mailbox[] }>('/mailboxes', { token }),
   apiFetch<{ user: User }>('/auth/me', { token }),
+  apiFetch<{ data: { id: string; name: string; color: string }[] }>('/tags', { token }),
+  apiFetch<{ data: { id: string; firstName: string; lastName: string; role: string; status: string }[] }>('/users', { token }),
 ]);
 
 if (
@@ -30,6 +34,8 @@ const messages     = convResult.status === 'fulfilled' ? convResult.value.messag
 const folders      = foldersResult.status === 'fulfilled' ? foldersResult.value.data : [];
 const mailboxes    = mailboxesResult.status === 'fulfilled' ? mailboxesResult.value.data : [];
 const me           = meResult.status === 'fulfilled' ? meResult.value.user : null;
+const allTags      = tagsResult.status === 'fulfilled' ? tagsResult.value.data : [];
+const agents       = usersResult.status === 'fulfilled' ? usersResult.value.data : [];
 
 function displayName(c: Conversation) {
   const { firstName, lastName, email } = c.customer;
@@ -132,9 +138,17 @@ function formatBytes(bytes: number) {
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
             </svg>
           </a>
-          <h1 class="text-sm font-semibold truncate" style="color: var(--color-text-primary);">
+          <h1 class="text-sm font-semibold truncate flex-1" style="color: var(--color-text-primary);">
             {conversation.subject}
           </h1>
+          <ConversationActions
+            conversationId={conversation.id}
+            status={conversation.status}
+            assignee={conversation.assignee ?? null}
+            {agents}
+            compact={true}
+            client:load
+          />
         </div>
 
         <!-- Messages -->
@@ -255,56 +269,26 @@ function formatBytes(bytes: number) {
           </div>
         </div>
 
-        <!-- Status -->
+        <!-- Status + Assignee (interactive) -->
         <div class="px-4 py-3 border-b" style="border-color: var(--color-border);">
-          <p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--color-text-tertiary);">Status</p>
-          <div class="flex items-center gap-2">
-            <span
-              class="h-2 w-2 rounded-full shrink-0"
-              style={`background: ${statusColor(conversation.status)};`}
-            ></span>
-            <span class="text-sm capitalize" style="color: var(--color-text-primary);">
-              {conversation.status}
-            </span>
-          </div>
+          <ConversationActions
+            conversationId={conversation.id}
+            status={conversation.status}
+            assignee={conversation.assignee ?? null}
+            {agents}
+            client:load
+          />
         </div>
 
-        <!-- Assignee -->
+        <!-- Tags (interactive) -->
         <div class="px-4 py-3 border-b" style="border-color: var(--color-border);">
-          <p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--color-text-tertiary);">Assignee</p>
-          {conversation.assignee ? (
-            <div class="flex items-center gap-2">
-              <div
-                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-                style="background: var(--color-text-secondary);"
-              >
-                {conversation.assignee.firstName?.[0]}
-              </div>
-              <span class="text-sm" style="color: var(--color-text-primary);">
-                {conversation.assignee.firstName} {conversation.assignee.lastName}
-              </span>
-            </div>
-          ) : (
-            <span class="text-sm" style="color: var(--color-text-tertiary);">Unassigned</span>
-          )}
+          <TagEditor
+            conversationId={conversation.id}
+            currentTags={conversation.tags ?? []}
+            {allTags}
+            client:load
+          />
         </div>
-
-        <!-- Tags -->
-        {conversation.tags && conversation.tags.length > 0 && (
-          <div class="px-4 py-3 border-b" style="border-color: var(--color-border);">
-            <p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color: var(--color-text-tertiary);">Tags</p>
-            <div class="flex flex-wrap gap-1.5">
-              {conversation.tags.map(tag => (
-                <span
-                  class="rounded-full px-2 py-0.5 text-xs font-medium"
-                  style={`background: ${tag.color}22; color: ${tag.color};`}
-                >
-                  {tag.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
 
         <!-- Mailbox -->
         <div class="px-4 py-3">

@@ -1,0 +1,129 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Sidebar from '../../../components/Sidebar.svelte';
+import Topbar from '../../../components/Topbar.svelte';
+import UserStatusButton from '../../../components/UserStatusButton.svelte';
+import UsersAddSection from '../../../components/UsersAddSection.svelte';
+import { apiFetch } from '../../../lib/api.js';
+import type { Folder, Mailbox, User } from '@casoon/helpdesk-types';
+
+const token = Astro.cookies.get('token')?.value;
+if (!token) return Astro.redirect('/login');
+
+const [usersResult, foldersResult, mailboxesResult, meResult] = await Promise.allSettled([
+  apiFetch<{ data: User[] }>('/users', { token }),
+  apiFetch<{ data: Folder[] }>('/folders', { token }),
+  apiFetch<{ data: Mailbox[] }>('/mailboxes', { token }),
+  apiFetch<{ user: User }>('/auth/me', { token }),
+]);
+
+if (meResult.status === 'rejected' && (meResult.reason as { status?: number }).status === 401) {
+  return Astro.redirect('/login');
+}
+
+const me = meResult.status === 'fulfilled' ? meResult.value.user : null;
+
+if (!me || me.role !== 'admin') {
+  return Astro.redirect('/conversations');
+}
+
+const users     = usersResult.status === 'fulfilled' ? usersResult.value.data : [];
+const folders   = foldersResult.status === 'fulfilled' ? foldersResult.value.data : [];
+const mailboxes = mailboxesResult.status === 'fulfilled' ? mailboxesResult.value.data : [];
+
+function roleBadgeStyle(role: string) {
+  if (role === 'admin') return 'background: #eef2ff; color: #3730a3;';
+  return 'background: var(--color-bg); color: var(--color-text-secondary);';
+}
+
+function statusBadgeStyle(status: string) {
+  if (status === 'active') return 'background: #dcfce7; color: #16a34a;';
+  return 'background: var(--color-bg); color: var(--color-text-tertiary);';
+}
+---
+<Layout title="Users" variant="app">
+  <Sidebar
+    slot="sidebar"
+    {mailboxes}
+    {folders}
+    activeSection="settings"
+    client:load
+  />
+  {me && (
+    <Topbar
+      slot="topbar"
+      user={me}
+      title="Users"
+      client:load
+    />
+  )}
+
+  <div class="p-6">
+    <!-- Header -->
+    <div class="mb-4">
+      <h1 class="text-lg font-semibold" style="color: var(--color-text-primary);">Users</h1>
+      <p class="text-sm mt-0.5" style="color: var(--color-text-secondary);">Manage agent accounts and roles.</p>
+    </div>
+
+    <!-- Add user toggle + form -->
+    <UsersAddSection client:load />
+
+    <!-- Table -->
+    <div
+      class="rounded-lg border overflow-hidden"
+      style="border-color: var(--color-border); background: var(--color-surface);"
+    >
+      <table class="w-full text-sm">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--color-border); background: var(--color-bg);">
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-tertiary);">User</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-tertiary);">Role</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-tertiary);">Status</th>
+            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-tertiary);">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.length === 0 ? (
+            <tr>
+              <td colspan="4" class="px-4 py-12 text-center text-sm" style="color: var(--color-text-tertiary);">No users found.</td>
+            </tr>
+          ) : users.map((user, i) => (
+            <tr style={`border-bottom: ${i < users.length - 1 ? '1px solid var(--color-border)' : 'none'};`}>
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+                    style="background: var(--color-accent);"
+                  >
+                    {user.firstName?.[0]?.toUpperCase() ?? user.email[0].toUpperCase()}
+                  </div>
+                  <div class="min-w-0">
+                    <p class="font-medium truncate" style="color: var(--color-text-primary);">
+                      {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.email}
+                    </p>
+                    <p class="text-xs truncate" style="color: var(--color-text-secondary);">{user.email}</p>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                <span
+                  class="rounded-full px-2 py-0.5 text-xs font-medium capitalize"
+                  style={roleBadgeStyle(user.role)}
+                >{user.role}</span>
+              </td>
+              <td class="px-4 py-3">
+                <span
+                  class="rounded-full px-2 py-0.5 text-xs font-medium capitalize"
+                  style={statusBadgeStyle(user.status)}
+                >{user.status}</span>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <UserStatusButton userId={user.id} currentStatus={user.status} client:load />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</Layout>

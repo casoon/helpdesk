@@ -1,0 +1,66 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Sidebar from '../../../components/Sidebar.svelte';
+import Topbar from '../../../components/Topbar.svelte';
+import MailboxForm from '../../../components/MailboxForm.svelte';
+import { apiFetch } from '../../../lib/api.js';
+import type { Folder, Mailbox, User } from '@casoon/helpdesk-types';
+
+const token = Astro.cookies.get('token')?.value;
+if (!token) return Astro.redirect('/login');
+
+const { id } = Astro.params;
+
+const [mailboxResult, foldersResult, mailboxesResult, meResult] = await Promise.allSettled([
+  apiFetch<{ mailbox: Mailbox }>(`/mailboxes/${id}`, { token }),
+  apiFetch<{ data: Folder[] }>('/folders', { token }),
+  apiFetch<{ data: Mailbox[] }>('/mailboxes', { token }),
+  apiFetch<{ user: User }>('/auth/me', { token }),
+]);
+
+if (meResult.status === 'rejected' && (meResult.reason as { status?: number }).status === 401) {
+  return Astro.redirect('/login');
+}
+
+if (mailboxResult.status === 'rejected') {
+  return Astro.redirect('/settings/mailboxes');
+}
+
+const mailbox   = mailboxResult.value.mailbox;
+const folders   = foldersResult.status === 'fulfilled' ? foldersResult.value.data : [];
+const mailboxes = mailboxesResult.status === 'fulfilled' ? mailboxesResult.value.data : [];
+const me        = meResult.status === 'fulfilled' ? meResult.value.user : null;
+---
+<Layout title={`Edit ${mailbox.name}`} variant="app">
+  <Sidebar
+    slot="sidebar"
+    {mailboxes}
+    {folders}
+    activeSection="settings"
+    client:load
+  />
+  {me && (
+    <Topbar
+      slot="topbar"
+      user={me}
+      title={`Edit ${mailbox.name}`}
+      client:load
+    />
+  )}
+
+  <div class="p-6">
+    <div class="mb-6">
+      <a
+        href="/settings/mailboxes"
+        class="text-sm transition-colors hover:underline"
+        style="color: var(--color-text-secondary);"
+      >← Mailboxes</a>
+      <h1 class="text-lg font-semibold mt-2" style="color: var(--color-text-primary);">Edit {mailbox.name}</h1>
+    </div>
+    <MailboxForm
+      mode="edit"
+      mailbox={mailbox as any}
+      client:load
+    />
+  </div>
+</Layout>

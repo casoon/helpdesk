@@ -14,6 +14,14 @@ async function run() {
   // Start consuming inbound jobs
   startInboundProcessor(boss);
 
+  const shutdown = async (signal: string) => {
+    console.log(`[imap] received ${signal}, shutting down…`);
+    await boss.stop();
+    process.exit(0);
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+
   const db = createDb(process.env.DATABASE_URL!);
 
   while (true) {

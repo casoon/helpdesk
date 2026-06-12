@@ -1,0 +1,135 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Sidebar from '../../../components/Sidebar.svelte';
+import Topbar from '../../../components/Topbar.svelte';
+import DeleteMailboxButton from '../../../components/DeleteMailboxButton.svelte';
+import { apiFetch } from '../../../lib/api.js';
+import type { Folder, Mailbox, User } from '@casoon/helpdesk-types';
+
+const token = Astro.cookies.get('token')?.value;
+if (!token) return Astro.redirect('/login');
+
+const [mailboxesResult, foldersResult, meResult] = await Promise.allSettled([
+  apiFetch<{ data: Mailbox[] }>('/mailboxes', { token }),
+  apiFetch<{ data: Folder[] }>('/folders', { token }),
+  apiFetch<{ user: User }>('/auth/me', { token }),
+]);
+
+if (meResult.status === 'rejected' && (meResult.reason as { status?: number }).status === 401) {
+  return Astro.redirect('/login');
+}
+
+const mailboxes = mailboxesResult.status === 'fulfilled' ? mailboxesResult.value.data : [];
+const folders   = foldersResult.status === 'fulfilled' ? foldersResult.value.data : [];
+const me        = meResult.status === 'fulfilled' ? meResult.value.user : null;
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+---
+<Layout title="Mailboxes" variant="app">
+  <Sidebar
+    slot="sidebar"
+    {mailboxes}
+    {folders}
+    activeSection="settings"
+    client:load
+  />
+  {me && (
+    <Topbar
+      slot="topbar"
+      user={me}
+      title="Mailboxes"
+      client:load
+    />
+  )}
+
+  <div class="p-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-lg font-semibold" style="color: var(--color-text-primary);">Mailboxes</h1>
+        <p class="text-sm mt-0.5" style="color: var(--color-text-secondary);">Manage your email inboxes and connection settings.</p>
+      </div>
+      <a
+        href="/settings/mailboxes/new"
+        class="rounded-md px-3 py-1.5 text-sm font-medium text-white transition-colors hover:opacity-90"
+        style="background: var(--color-accent);"
+      >
+        Add Mailbox
+      </a>
+    </div>
+
+    <!-- Table -->
+    {mailboxes.length === 0 ? (
+      <div
+        class="flex flex-col items-center justify-center rounded-lg border py-16 text-center"
+        style="border-color: var(--color-border); background: var(--color-surface);"
+      >
+        <svg class="mb-3 h-10 w-10" style="color: var(--color-border-strong);" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 9v.906a2.25 2.25 0 0 1-1.183 1.981l-6.478 3.488M2.25 9v.906a2.25 2.25 0 0 0 1.183 1.981l6.478 3.488m8.839 2.51-4.66-2.51m0 0-1.023-.55a2.25 2.25 0 0 0-2.134 0l-1.022.55m0 0-4.661 2.51m16.5 1.615a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V8.844a2.25 2.25 0 0 1 1.183-1.981l7.5-4.039a2.25 2.25 0 0 1 2.134 0l7.5 4.039a2.25 2.25 0 0 1 1.183 1.98V19.5Z" />
+        </svg>
+        <p class="text-sm font-medium" style="color: var(--color-text-secondary);">No mailboxes yet</p>
+        <p class="mt-1 text-xs" style="color: var(--color-text-tertiary);">Add a mailbox to start receiving conversations.</p>
+        <a
+          href="/settings/mailboxes/new"
+          class="mt-4 rounded-md px-3 py-1.5 text-sm font-medium text-white transition-colors hover:opacity-90"
+          style="background: var(--color-accent);"
+        >
+          Add Mailbox
+        </a>
+      </div>
+    ) : (
+      <div
+        class="rounded-lg border overflow-hidden"
+        style="border-color: var(--color-border); background: var(--color-surface);"
+      >
+        <table class="w-full text-sm">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--color-border); background: var(--color-bg);">
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-tertiary);">Name</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-tertiary);">Email address</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-tertiary);">Auto-reply</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-tertiary);">Created</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-tertiary);">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {mailboxes.map((mb, i) => (
+              <tr
+                style={`border-bottom: ${i < mailboxes.length - 1 ? '1px solid var(--color-border)' : 'none'};`}
+              >
+                <td class="px-4 py-3 font-medium" style="color: var(--color-text-primary);">{mb.name}</td>
+                <td class="px-4 py-3" style="color: var(--color-text-secondary);">{mb.email}</td>
+                <td class="px-4 py-3">
+                  {mb.autoReplyEnabled ? (
+                    <span
+                      class="rounded-full px-2 py-0.5 text-xs font-medium"
+                      style="background: #dcfce7; color: #16a34a;"
+                    >On</span>
+                  ) : (
+                    <span
+                      class="rounded-full px-2 py-0.5 text-xs font-medium"
+                      style="background: var(--color-bg); color: var(--color-text-tertiary);"
+                    >Off</span>
+                  )}
+                </td>
+                <td class="px-4 py-3 text-xs" style="color: var(--color-text-secondary);">{formatDate(mb.createdAt)}</td>
+                <td class="px-4 py-3 text-right">
+                  <div class="flex items-center justify-end gap-2">
+                    <a
+                      href={`/settings/mailboxes/${mb.id}`}
+                      class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors hover:bg-gray-50"
+                      style="color: var(--color-accent-text);"
+                    >Edit</a>
+                    <DeleteMailboxButton mailboxId={mb.id} client:load />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+</Layout>
